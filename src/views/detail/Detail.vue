@@ -1,15 +1,15 @@
 <template>
   <div class="detail">
     <!-- 导航 -->
-    <Detail-nav-bar class="detail-nav" />
+    <Detail-nav-bar class="detail-nav" @titleClick="titleClick"/>
     <Scroll class="content" ref="scroll">
       <Detail-swiper :top-images="topImages" />
       <Detail-base-info :goods="goods" />
       <Detail-shop-info :shop="shop" />
       <Detail-goods-info :detail-info="detailInfo" @imageLoad="imageLoad" />
-      <Detail-param-info :param-info="paramInfo" />
-      <Detail-comment-info :comment-info="commentInfo" />
-      <Goods-list :goods="recommends"/>
+      <Detail-param-info :param-info="paramInfo" ref="params"/>
+      <Detail-comment-info :comment-info="commentInfo" ref="comment"/>
+      <Goods-list :goods="recommends" ref="recommend"/>
     </Scroll>
   </div>
 </template>
@@ -29,6 +29,7 @@ import {debounce} from "common/utils"
 import {itemListenerMixin} from "common/mixin"
 
 import { getDaetil, Goods, Shop, GoodsParam, getRecommend } from "network/detail";
+import { log } from 'util';
 export default {
   name: "Detail",
   // 混入
@@ -42,7 +43,9 @@ export default {
       detailInfo: {},
       paramInfo: {},
       commentInfo: {},
-      recommends: []
+      recommends: [],
+      themeTopYs: [],
+      getThemeTopY: null
     };
   },
   created() {
@@ -72,10 +75,31 @@ export default {
       if (data.rate.cRate !== 0) {
         this.commentInfo = data.rate.list[0];
       }
+      /** 
+      // 1.在此处取值时this.$refs.params.$el还没渲染取不到值
+      this.$nextTick(()=>{
+        // 2.在此处取值，是根据最新的数据，DOM已经渲染出来了
+        // 但是图片还没有完全加载出来取出的值是不对的
+        // offsetTop值不对事大多因为图片
+        this.themeTopYs.push(0)
+        this.themeTopYs.push(this.$refs.params.$el.offsetTop)
+        this.themeTopYs.push(this.$refs.comment.$el.offsetTop)
+        this.themeTopYs.push(this.$refs.recommend.$el.offsetTop)
+        console.log(this.themeTopYs)
+      })
+      */
     });
     // 3.请求推荐数据
     getRecommend().then(res=>{
       this.recommends = res.data.list
+    })
+    // 4.给getThemeTopY赋值,并进行防抖
+    this.getThemeTopY = debounce(()=>{
+      this.themeTopYs.push(0)
+        this.themeTopYs.push(this.$refs.params.$el.offsetTop)
+        this.themeTopYs.push(this.$refs.comment.$el.offsetTop)
+        this.themeTopYs.push(this.$refs.recommend.$el.offsetTop)
+        // console.log(this.themeTopYs)
     })
   },
   mounted(){
@@ -95,6 +119,12 @@ export default {
   methods: {
     imageLoad() {
       this.$refs.scroll.refresh();
+      // this.newrefresh()
+      this.getThemeTopY()
+    },
+    titleClick(index){
+      // console.log(index)
+      this.$refs.scroll.scrollTo(0,-this.themeTopYs[index],100)
     }
   },
   components: {

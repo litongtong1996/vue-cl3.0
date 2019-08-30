@@ -5,6 +5,7 @@ export const itemListenerMixin = {
   data() {
     return {
       itemImgListener: null
+      // newrefresh: null
     }
   },
   mounted() {
@@ -14,6 +15,7 @@ export const itemListenerMixin = {
     this.itemImgListener = () => {
       // this.$refs.scroll.refresh();
       newrefresh()
+      // this.newrefresh()
     }
     this.$bus.$on("itemImageLoad", this.itemImgListener);
   }
