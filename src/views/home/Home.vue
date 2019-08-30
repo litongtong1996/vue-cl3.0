@@ -35,11 +35,13 @@ import Scroll from "components/common/scroll/Scroll";
 import BackTop from "components/content/backTop/BackTop";
 
 import { getHomeMultidata, getHomeGoods } from "network/home";
-import debounce from "common/utils"
+import {debounce} from "common/utils"
+import {itemListenerMixin} from "common/mixin"
 import { clearTimeout } from "timers";
 
 export default {
   name: "Home",
+  mixins:[itemListenerMixin],
   components: {
     HomeSwiper,
     RecommendView,
@@ -76,12 +78,14 @@ export default {
     this.getHomeGoods("sell");
   },
   mounted() {
-    // 1.监听图片加载完毕
-    // const refresh = debounce(this.$refs.scroll.refresh,50);
-    this.$bus.$on("itemImageLoad", () => {
-      this.$refs.scroll.refresh();
-      // refresh()
-    });
+    // // 1.监听图片加载完毕
+    // const newrefresh = debounce(this.$refs.scroll.refresh,50);
+    // // 对监听事件进行保存
+    // this.itemImgListener = () => {
+    //   // this.$refs.scroll.refresh();
+    //   newrefresh()
+    // }
+    // this.$bus.$on("itemImageLoad", this.itemImgListener);
   },
   computed: {
     showGoods() {
@@ -89,8 +93,11 @@ export default {
     }
   },
   activated(){
+    // 1.保存当前位置
     this.$refs.scroll.scrollTo(0,this.saveY,0);
     this.$refs.scroll.refresh();
+    // 2.取消全局事件的监听
+    this.$bus.$off("itemImageLoad",this.itemImgListener)
   },
   deactivated(){
     this.saveY = this.$refs.scroll.getScrollY();
