@@ -1,16 +1,18 @@
 <template>
   <div class="detail">
     <!-- 导航 -->
-    <Detail-nav-bar class="detail-nav" @titleClick="titleClick"/>
-    <Scroll class="content" ref="scroll">
+    <Detail-nav-bar class="detail-nav" @titleClick="titleClick" ref="nav"/>
+    <Scroll class="content" ref="scroll" @scroll="contentScroll" :probe-type="3">
       <Detail-swiper :top-images="topImages" />
       <Detail-base-info :goods="goods" />
       <Detail-shop-info :shop="shop" />
       <Detail-goods-info :detail-info="detailInfo" @imageLoad="imageLoad" />
-      <Detail-param-info :param-info="paramInfo" ref="params"/>
-      <Detail-comment-info :comment-info="commentInfo" ref="comment"/>
-      <Goods-list :goods="recommends" ref="recommend"/>
+      <Detail-param-info :param-info="paramInfo" ref="params" />
+      <Detail-comment-info :comment-info="commentInfo" ref="comment" />
+      <Goods-list :goods="recommends" ref="recommend" />
     </Scroll>
+    <Back-top @click.native="backClick" v-show="isShowBackTop" />
+    <Detail-bottom-bar @addCart="addToCart"/>
   </div>
 </template>
 <script>
@@ -21,19 +23,20 @@ import DetailShopInfo from "./childComps/DetailShopInfo";
 import DetailGoodsInfo from "./childComps/DetailGoodsInfo";
 import DetailParamInfo from "./childComps/DetailParamInfo";
 import DetailCommentInfo from "./childComps/DetailCommentInfo";
+import DetailBottomBar from "./childComps/DetailBottomBar"
 
 import Scroll from "components/common/scroll/Scroll";
 import GoodsList from "components/content/goods/GoodsList"
 
 import {debounce} from "common/utils"
-import {itemListenerMixin} from "common/mixin"
+import {itemListenerMixin, backTopMixin} from "common/mixin"
 
 import { getDaetil, Goods, Shop, GoodsParam, getRecommend } from "network/detail";
 import { log } from 'util';
 export default {
   name: "Detail",
   // 混入
-  mixins:[itemListenerMixin],
+  mixins:[itemListenerMixin, backTopMixin],
   data() {
     return {
       iid: null,
@@ -45,7 +48,8 @@ export default {
       commentInfo: {},
       recommends: [],
       themeTopYs: [],
-      getThemeTopY: null
+      getThemeTopY: null,
+      currentIndex: 0
     };
   },
   created() {
@@ -99,7 +103,9 @@ export default {
         this.themeTopYs.push(this.$refs.params.$el.offsetTop)
         this.themeTopYs.push(this.$refs.comment.$el.offsetTop)
         this.themeTopYs.push(this.$refs.recommend.$el.offsetTop)
+        this.themeTopYs.push(Number.MAX_VALUE)
         // console.log(this.themeTopYs)
+        //hack做法： Number.MAX_VALUE 在push一个最大值
     })
   },
   mounted(){
@@ -125,6 +131,47 @@ export default {
     titleClick(index){
       // console.log(index)
       this.$refs.scroll.scrollTo(0,-this.themeTopYs[index],100)
+    },
+    contentScroll(position){
+      // console.log(position)
+      // 1.获取y值
+      const positionY = -position.y
+      /**  2.position中的y值和标题中的值进行对比
+       * [0,768,1456,2342]
+       * position.y在 0 和 768 之间，index = 0
+       * position.y在 768 和 1456 之间，index = 1
+       * position.y在 1456 和 2342 之间，index = 2
+       * position.y超过 2342，index = 3
+      */
+     let length = this.themeTopYs.length
+        for(let i = 0; i< length - 1;i++){
+          if(this.currentIndex !== i && (positionY >= this.themeTopYs[i] && positionY < this.themeTopYs[i+1])){
+            this.currentIndex = i
+            this.$refs.nav.currentIndex = this.currentIndex
+          }
+        }
+        // 判断返回顶部是否显示
+      this.isShowBackTop = (-position.y) > 1000;
+    //  for(let i = 0; i<length;i++){
+    //    if(this.currentIndex !== i && (i < length - 1 && positionY >= this.themeTopYs[i] && positionY < this.themeTopYs[i+1]) || 
+    //    (i === length - 1 && positionY >= this.themeTopYs[i])){
+    //      this.currentIndex = i
+    //      this.$refs.nav.currentIndex = this.currentIndex
+    //    }
+    //  }
+    },
+    addToCart(){
+      // 1.获取购物车展示信息
+      const product = {}
+      product.imgage = this.topImages[0]
+      product.title = this.goods.title
+      product.desc = this.goods.desc
+      product.price = this.goods.realPrice
+      product.iid = this.iid
+      // 2.将商品加入购物车
+      // this.$store.cartList.push() 不建议这样使用
+      // this.$store.commit("addCart",product)
+      this.$store.dispatch("addCart",product)
     }
   },
   components: {
@@ -135,6 +182,7 @@ export default {
     DetailGoodsInfo,
     DetailParamInfo,
     DetailCommentInfo,
+    DetailBottomBar,
     Scroll,
     GoodsList
   }
@@ -148,7 +196,7 @@ export default {
   height: 100vh;
 }
 .content {
-  height: calc(100% - 44px);
+  height: calc(100% - 44px - 58px);
 }
 .detail-nav {
   position: relative;
